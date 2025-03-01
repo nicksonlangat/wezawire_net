@@ -1,0 +1,31 @@
+
+  @font-face {
+    font-family: Satoshi;
+    font-weight: 400;
+    src: url(../fonts/Satoshi-Regular.otf);
+  }
+
+  @font-face {
+    font-family: Satoshi;
+    font-weight: 600;
+    src: url(../fonts/Satoshi-Medium.otf);
+  }
+
+  @font-face {
+    font-family: Satoshi;
+    font-weight: 800;
+    src: url(../fonts/Satoshi-Bold.otf);
+  }
+
+  @font-face {
+    font-family: Satoshi;
+    font-weight: 900;
+    src: url(../fonts/Satoshi-Black.otf);
+  }
+
+
+html {
+  color: #14213d;
+  font-family: Satoshi;
+  /* font-size: 11pt; */
+}

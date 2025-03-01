@@ -1,0 +1,115 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="background-image: url('https://i.postimg.cc/wTfqS40N/Background.jpg');">
+
+
+    <div style="background-color: #4FA43D;
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 15px -3px;
+    max-width: 42rem;
+    margin-right: auto;
+    margin-left: auto;
+    margin-top: 12px;
+    padding-right: 8px;
+    padding-left: 8px;
+    padding-top: 4px;
+    padding-bottom: 4px;">
+        <!-- <div style="display: flex;
+        justify-content: center;
+        margin-top: -16px;">
+            <img style=" width: 2rem;
+            height: 2rem;
+            border-width: 4px;
+            border-color: rgb(255 255 255);
+            border-radius: 9999px;" alt="icon" src="cid:prof">
+        </div> -->
+        <!-- src="{% static 'icon.jpg' %}"> -->
+        <h2 style="margin-top: 2px; color:white; text-align: center; font-size: 1.5rem; line-height: 2rem; font-weight: 600;">
+        Welcome to Greenpick
+    </h2>
+        <h4
+        style="margin-top: 12px; color:white; text-align: center; font-size: 1.2rem; line-height: 2rem; font-weight: 600;">
+          Dear {{name}},</h4>
+
+        <p
+
+        style="margin-bottom: 4px; color: white; text-align: center; font-style: italic;"
+        >
+            Thank you for registering on Greenpick. We are happy to have you onboard!
+        </p>
+        <hr class="mb-4">
+         <h4 style="margin-top: 2px; color:white; text-align: center; font-size: 1.2rem; line-height: 2rem; font-weight: 600;">With Greenpick you will:</h4>
+        <div>
+            <ol style="display: flex;
+            gap: 12px;
+            list-style-type: disc;
+            justify-content: center;
+            margin-bottom: 4px;">
+            <li style="color: white; font-style: italic;">
+              Authentic and very affordable products
+            </li>
+            <li style="color: white; font-style: italic;">
+              The best shopping experience
+            </li>
+            <li style="color: white; font-style: italic;">
+              The best customer support
+            </li>
+
+        </ol>
+        </div>
+        <hr class="mb-4">
+        <p style="margin-top: 2px; color: white; text-align: center;">
+            Sit back and relax while we take your food business to the next level!
+        </p>
+        <p style="text-align: center; color: white;">
+          Your login details:
+      </p>
+      <ul style="margin-bottom: 4px; list-style: none;">
+          <li style="text-align: center; font-style: italic; color: white;">
+            Email: {{email}}
+          </li>
+          <li style="text-align: center; font-style: italic; color: white;">
+            Password: {{password}}
+          </li>
+      </ul>
+
+        <div style="
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 4px;">
+           <a style="
+           margin-right: auto;
+           margin-left: auto;" href="https://play.google.com/store/apps/details?id=com.green.pick">
+            <button style="
+            background-color: #002B87;
+            color: white;
+            padding-left: 12px;
+            padding-right: 12px;
+            padding-top: 6px;
+            padding-bottom: 6px;
+            box-shadow: 0 1px 3px 0;
+            font-weight: bold;
+            border: none;
+            text-decoration: none;
+            display: inline-block;">
+                Go to App
+                </button>
+           </a>
+        </div>
+    </div>
+    <div>
+        <br>
+        <p style="text-align: center; font-weight: 600;">
+            If you have any questions, reply to this email or contact us at hello@greenpick.store
+        </p>
+    </div>
+    </div>
+</body>
+</html>
