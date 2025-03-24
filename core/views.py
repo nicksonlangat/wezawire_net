@@ -1,7 +1,9 @@
 import io
 import json
 import os
-
+import uuid
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.db.models import Q
@@ -14,14 +16,28 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from weasyprint import HTML
-
 from . import utils
-from .models import Client, Journalist, PressRelease
+from .models import Client, Journalist, Partner, PressRelease
 from .serializers import ClientSerializer, JournalistSerializer, PressReleaseSerializer
 
 API_KEY = settings.OPENAI_KEY
 client = OpenAI(api_key=API_KEY)
+
+
+import pdfplumber
+from weasyprint import HTML, CSS
+
+def extract_text_from_pdf(pdf_file):
+    """Extract raw text from an uploaded MPESA statement PDF file."""
+    text_data = []
+    
+    with pdfplumber.open(pdf_file) as pdf:
+        for page in pdf.pages:
+            text = page.extract_text()
+            if text:
+                text_data.append(text)
+
+    return "\n".join(text_data)
 
 
 class GeneratePressReleaseAPI(APIView):
@@ -32,12 +48,48 @@ class GeneratePressReleaseAPI(APIView):
         data = request.data
         prompt = data.get("prompt")
         client = data.get("client")
-        partner = data.get("partner")
+       
         country = data.get("country")
         object_id = data.get("id")
+        
+        uploaded_file = request.FILES.get("file")
+        extracted_text = ""
+        if uploaded_file and uploaded_file.name.endswith(".pdf"):
+            extracted_text = extract_text_from_pdf(uploaded_file)
+
+        
+        if object_id:
+            try:
+                press_release = PressRelease.objects.get(id=object_id)
+            except PressRelease.DoesNotExist:
+                press_release = PressRelease.objects.create(id=object_id)
+        else:
+            press_release = PressRelease.objects.create(id=str(uuid.uuid4()))
+        
+        
+        # Process partners
+        partners_data = self._extract_partners_data(request.data, request.FILES)
+            
+
+        # Create new partners
+        for partner_data in partners_data:
+            partner = Partner.objects.create(
+                press_release=press_release,
+                name=partner_data['name']
+            )
+            
+            # Save partner image if provided
+            if 'image' in partner_data and partner_data['image']:
+                image_file = partner_data['image']
+                image_path = f'partners/{partner.created_at}/{image_file.name}'
+                saved_path = default_storage.save(image_path, ContentFile(image_file.read()))
+                partner.image = saved_path
+                partner.save()
+
 
         generated_press_release = utils.get_press_release(
-            prompt=prompt, client=client, partner=partner, country=country
+            prompt=prompt, client=client, partners=[partner_data['name'] for partner_data in partners_data ],
+              country=country, template=extracted_text
         )
 
         pr_data = json.loads(generated_press_release)
@@ -60,6 +112,49 @@ class GeneratePressReleaseAPI(APIView):
 
         serialized_data = PressReleaseSerializer(db_pr).data
         return Response(serialized_data, status=status.HTTP_201_CREATED)
+    
+
+    def _extract_partners_data(self, data, files):
+        """
+        Extract partners data from request.data and request.FILES
+        
+        Handles both form data (partners[0][name], partners[0][image]) format
+        and JSON format ({partners: [{name: "...", image: File}]})
+        """
+        partners = []
+        
+        # Check if data has a 'partners' key (JSON format)
+        if 'partners' in data and isinstance(data['partners'], str):
+            try:
+                partners_json = json.loads(data['partners'])
+                for partner_json in partners_json:
+                    partner = {'name': partner_json.get('name', '')}
+                    partners.append(partner)
+                return partners
+            except json.JSONDecodeError:
+                pass
+        
+        # Process form data format: partners[0][name], partners[0][image], etc.
+        partner_indices = set()
+        for key in data.keys():
+            if key.startswith('partners[') and '][name]' in key:
+                # Extract index from format "partners[0][name]"
+                index = key.split('[')[1].split(']')[0]
+                partner_indices.add(index)
+        
+        for index in partner_indices:
+            name_key = f'partners[{index}][name]'
+            image_key = f'partners[{index}][image]'
+            
+            partner = {'name': data.get(name_key, '')}
+            
+            # Add image if available
+            if image_key in files:
+                partner['image'] = files[image_key]
+                
+            partners.append(partner)
+            
+        return partners
 
 
 class ClientListView(APIView):
@@ -213,23 +308,58 @@ class PressPreview(APIView):
 
     def post(self, request):
         id = request.data["id"]
+        
+        pr = PressRelease.objects.get(id=id)
 
-        data = PressRelease.objects.get(id=id).description
-        html_data = render_to_string("preview.html", {"data": data})
-        html = HTML(string=html_data, base_url=request.build_absolute_uri("/"))
+        data = pr.description
+        client = Client.objects.filter(name=pr.client).first()
+        client_logo = request.build_absolute_uri(client.logo.url)
+
+        partner_logos = [partner.image.url for partner in pr.partners.all() if partner.image]  # Partner logos list
+
+        html_data = render_to_string("preview.html", {"data": data, "client_logo": client_logo, "partner_logos": partner_logos})
+        
+        html = HTML(
+            string=html_data,
+            base_url=request.build_absolute_uri("/"),
+        )
+        
         buffer = io.BytesIO()
-        html.write_pdf(target=buffer)
+        html.write_pdf(target=buffer, stylesheets=[CSS(settings.STATIC_ROOT + "/css/invoice.css")])
+        
         pdf = buffer.getvalue()
-
+        
         file_name = "preview.pdf"
         f = open(os.path.join(settings.MEDIA_ROOT, file_name), "wb")
         f.write(pdf)
 
         return Response({"url": f"media/{file_name}"})
-        # response = HttpResponse(content_type='application/pdf')
-        # response['Content-Disposition'] = 'attachment; filename="preview.pdf"'
-        # response.write(pdf)
-        # return response
+
+    # def post(self, request):
+    #     id = request.data["id"]
+    #     pr = PressRelease.objects.get(id=id)
+    #     data = pr.description
+    #     client = Client.objects.filter(name=pr.client).first()
+    #     client_logo = request.build_absolute_uri(client.logo.url)  # Ensure absolute URL
+
+    #     # Pass data and logo URL to template
+    #     html_data = render_to_string("preview.html", {"data": data, "client_logo": client_logo})
+
+    #     html = HTML(string=html_data, base_url=request.build_absolute_uri("/"))
+    #     buffer = io.BytesIO()
+    #     html.write_pdf(target=buffer, 
+    #                 #    stylesheets=[CSS(settings.STATIC_ROOT + "/css/invoice.css")]
+    #                    )
+    #     pdf = buffer.getvalue()
+
+    #     file_name = "preview.pdf"
+    #     file_path = os.path.join(settings.MEDIA_ROOT, file_name)
+        
+    #     with open(file_path, "wb") as f:
+    #         f.write(pdf)
+
+    #     return Response({"url": f"media/{file_name}"})
+       
 
 
 class PressDistribute(APIView):

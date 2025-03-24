@@ -1,3 +1,4 @@
+from .models import Client
 import openai
 from django.conf import settings
 
@@ -48,14 +49,18 @@ standard_layout = {
 }
 
 
-def get_press_release(prompt: str, client: str, partner: str, country: str):
+def get_press_release(prompt: str, client: str, partners: list, country: str, template: str):
+    db_client = Client.objects.filter(name=client).first()
     prompt = f"""
-    Generate a press release for {client} in patnership with {partner} in {country}.
+    Using this template layout and formatting {template},
+    Generate a press release for {client} in patnership with {partners} in {country}.
     The press release must have a title, a brief description, and the main content.
     The main press release content must be correctly formatted as HTML
     string using appropriate tags. The content must fill atleast one page PDF. This content will be exported to PDF make sure it looks appealing.
     Follow the standard press release format and make sure to include the following details:
-    {prompt}
+    {prompt} {db_client.description}
+    End your content with the following contact info:
+    {db_client.about}
     """
 
     response = openai.chat.completions.create(
